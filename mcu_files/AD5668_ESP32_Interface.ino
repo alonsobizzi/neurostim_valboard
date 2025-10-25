@@ -1,67 +1,83 @@
 #include <SPI.h>
 
-// ===== Pin assignments for Adafruit HUZZAH32 ESP32 =====
-#define SYNC_PIN 5   // DAC SYNC (acts as Chip Select)
-#define LDAC_PIN 4   // DAC LDAC (optional)
-#define CLR_PIN  2   // DAC CLR (optional)
+// ===== Pin mapping (from your schematic) =====
+#define SYNC_PIN 4    // DAC_NSYNC  (active low)
+#define SCK_PIN  5    // DAC_SCLK
+#define MOSI_PIN 18   // DAC_DIN
 
-// ===== Function to send 32-bit command to DAC =====
+// ===== DAC configuration =====
+const float DAC_VREF = 2.5;   // internal reference voltage
+const int   DAC_BITS = 16;    // AD5668 = 16-bit
+const bool  DAC_REF_INTERNAL = true;
+
+// ===== Initial voltages for channels A–H =====
+float dacVoltages[8] = {0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00};
+
+// ---------------------------------------------------------------------
+// ----------------------  DAC INTERFACE FUNCTIONS  --------------------
+// ---------------------------------------------------------------------
+uint32_t buildDACCommand(uint8_t cmd, uint8_t addr, uint16_t value) {
+  uint32_t frame = 0;
+  frame |= ((uint32_t)cmd & 0x0F) << 24;   // command bits
+  frame |= ((uint32_t)addr & 0x0F) << 20;  // address bits (channel)
+  frame |= ((uint32_t)value & 0xFFFF);     // 16-bit data
+  return frame;
+}
+
 void writeToDAC(uint32_t data) {
   digitalWrite(SYNC_PIN, LOW);
   SPI.transfer((data >> 24) & 0xFF);
   SPI.transfer((data >> 16) & 0xFF);
-  SPI.transfer((data >> 8)  & 0xFF);
+  SPI.transfer((data >> 8) & 0xFF);
   SPI.transfer(data & 0xFF);
   digitalWrite(SYNC_PIN, HIGH);
 }
 
-// ===== Build DAC command frame =====
-uint32_t buildDACCommand(uint8_t cmd, uint8_t addr, uint16_t value) {
-  uint32_t frame = 0;
-  frame |= ((uint32_t)cmd & 0x0F) << 24;   // C3..C0
-  frame |= ((uint32_t)addr & 0x0F) << 20;  // A3..A0
-  frame |= ((uint32_t)value & 0xFFFF);     // Data (16-bit)
-  return frame;
+void enableInternalRef(bool enable) {
+  uint32_t refCmd = (0x8 << 24) | (enable ? 0x1 : 0x0);
+  writeToDAC(refCmd);
+  delay(5);
 }
 
+uint16_t voltageToCode(float voltage) {
+  if (voltage < 0) voltage = 0;
+  if (voltage > DAC_VREF * 2.0) voltage = DAC_VREF * 2.0;
+  return (uint16_t)((voltage / (DAC_VREF * 2.0)) * ((1UL << DAC_BITS) - 1));
+}
+
+void setDACVoltage(uint8_t channelIndex, float voltage) {
+  if (channelIndex > 7) return; // 0–7 valid (A–H)
+  uint16_t code = voltageToCode(voltage);
+  uint32_t cmd = buildDACCommand(0x3, channelIndex, code); // write + update
+  writeToDAC(cmd);
+}
+
+void setAllDACVoltages(float vals[8]) {
+  for (uint8_t i = 0; i < 8; i++)
+    setDACVoltage(i, vals[i]);
+}
+
+// ---------------------------------------------------------------------
+// ----------------------------  SETUP  --------------------------------
+// ---------------------------------------------------------------------
 void setup() {
   pinMode(SYNC_PIN, OUTPUT);
-  pinMode(LDAC_PIN, OUTPUT);
-  pinMode(CLR_PIN, OUTPUT);
-
   digitalWrite(SYNC_PIN, HIGH);
-  digitalWrite(LDAC_PIN, HIGH);
-  digitalWrite(CLR_PIN, HIGH);
 
-  // Initialize SPI on default VSPI bus
-  SPI.begin(18, 19, 23, SYNC_PIN); // SCK=18, MISO=19, MOSI=23
+  SPI.begin(SCK_PIN, -1, MOSI_PIN, SYNC_PIN);
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE1));
   delay(50);
 
-  // Enable internal reference (Command 1000, DB0=1)
-  uint32_t refCmd = (0x8 << 24) | 0x1;
-  writeToDAC(refCmd);
-  delay(10);
+  if (DAC_REF_INTERNAL)
+    enableInternalRef(true);
 
-  // Example: set DAC A (Address 0x0) to midscale
-  uint16_t value = 0x8000;
-  uint32_t cmd = buildDACCommand(0x3, 0x0, value);
-  writeToDAC(cmd);
-
-  // Toggle LDAC to update output
-  digitalWrite(LDAC_PIN, LOW);
-  delayMicroseconds(1);
-  digitalWrite(LDAC_PIN, HIGH);
+  // Apply the initial voltages
+  setAllDACVoltages(dacVoltages);
 }
 
+// ---------------------------------------------------------------------
+// -----------------------------  LOOP  --------------------------------
+// ---------------------------------------------------------------------
 void loop() {
-  // Sweep DAC A output for demo
-  for (uint16_t val = 0; val < 0xFFFF; val += 1024) {
-    uint32_t cmd = buildDACCommand(0x3, 0x0, val);
-    writeToDAC(cmd);
-    digitalWrite(LDAC_PIN, LOW);
-    delayMicroseconds(1);
-    digitalWrite(LDAC_PIN, HIGH);
-    delay(20);
-  }
+  // Nothing to do – outputs remain at the set voltages
 }
