@@ -6,12 +6,13 @@
 #define MOSI_PIN 18   // DAC_DIN
 
 // ===== DAC configuration =====
-const float DAC_VREF = 2.5;   // internal reference voltage
+const float DAC_VREF = 5;   // internal reference voltage
 const int   DAC_BITS = 16;    // AD5668 = 16-bit
-const bool  DAC_REF_INTERNAL = true;
+const bool  DAC_REF_INTERNAL = false;
 
 // ===== Initial voltages for channels A–H =====
-float dacVoltages[8] = {0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00};
+// VPWR, VCBREF, DACREF, VSUP, V1P8, VBG, V3P3, VECOM
+float dacVoltages[8] = {3.55, 1.2, 5, 3.5, 1.8, 1.366, 3.3, 1.65};
 
 // ---------------------------------------------------------------------
 // ----------------------  DAC INTERFACE FUNCTIONS  --------------------
