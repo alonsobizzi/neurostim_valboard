@@ -37,7 +37,6 @@ void loop() {
   write_dac(CMD_WRITE_UPDATE, DAC_A, voltageToCode(dac_vout));
   dac_vout += 0.1;
   if(dac_vout>= 5) {dac_vout=0.0;}
-  delay(100);
 }
 
 void configure_spi() {
@@ -54,6 +53,7 @@ void write_dac(uint8_t cmd, uint8_t address, uint16_t data) {
     (uint32_t)0
   );
   SPI.endTransaction();
+  delayMicroseconds(32);
 }
 
 uint16_t voltageToCode(float voltage) {
