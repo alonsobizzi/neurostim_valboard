@@ -48,6 +48,11 @@
 #define DAC_CH_V3P3   DAC_G
 #define DAC_CH_VECOM  DAC_H
 
+// ==== Shrey Clock Code =====
+#define CLOCK_PIN GPIO_NUM_9   // SCL pin on FeatherS2
+#define CLOCK_FREQ 5000000    // 10 MHz
+
+
 // ===== Global SPI objects =====
 extern SPISettings spi_conf;
 extern hw_timer_t* timer;
