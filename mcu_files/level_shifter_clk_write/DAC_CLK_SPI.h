@@ -1,5 +1,5 @@
-#ifndef DAC_SPI_H
-#define DAC_SPI_H
+#ifndef DAC_CLK_SPI_H
+#define DAC_CLK_SPI_H
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -47,6 +47,9 @@
 #define DAC_CH_VBG    DAC_F
 #define DAC_CH_V3P3   DAC_G
 #define DAC_CH_VECOM  DAC_H
+
+
+
 
 // ===== Global SPI objects =====
 extern SPISettings spi_conf;
